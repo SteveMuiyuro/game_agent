@@ -12,7 +12,7 @@ PLAYER_NAME = "Gladiator"
 
 CHECK_INTERVAL = 1.5
 
-MAX_RETRIES = 5
+MAX_RETRIES = 3
 BASE_BACKOFF = 2
 
 
@@ -97,7 +97,7 @@ async def safe_agent_run(agent, prompt):
             error_msg = str(e).lower()
 
             if "rate" in error_msg or "429" in error_msg:
-                wait_time = BASE_BACKOFF ** retries
+                wait_time = (BASE_BACKOFF ** retries) + random.uniform(0,1)
                 print(f"Rate limit hit. Waiting {wait_time}s before retry...")
 
                 await asyncio.sleep(wait_time)
