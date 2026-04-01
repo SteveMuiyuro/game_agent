@@ -12,7 +12,11 @@ PLAYER_NAME = "Gladiator"
 
 CHECK_INTERVAL = 1.5
 
-AGENT_INSTRUCTIONS =f"""
+MAX_RETRIES = 5
+BASE_BACKOFF = 2
+
+
+AGENT_INSTRUCTIONS = f"""
 You are a strategic diplomacy agent competing in a multi-agent alliance game.
 
 Goal: maximize total score.
@@ -46,7 +50,8 @@ Minimize unnecessary reasoning.
 Your player name is {PLAYER_NAME}.
 """
 
-GAMING_INSTRUCTIONS =f"""
+
+GAMING_INSTRUCTIONS = f"""
 Check the current game state.
 
 If the phase is diplomacy AND you have not broadcast yet:
@@ -72,10 +77,41 @@ Always submit a vote. Avoid abstaining.
 Your player name is {PLAYER_NAME}.
 """
 
+
+async def safe_agent_run(agent, prompt):
+    """
+    Wrapper to protect Runner.run from rate limits.
+    Retries with exponential backoff.
+    """
+
+    retries = 0
+
+    while retries < MAX_RETRIES:
+        try:
+
+            result = await Runner.run(agent, prompt)
+            return result
+
+        except Exception as e:
+
+            error_msg = str(e).lower()
+
+            if "rate" in error_msg or "429" in error_msg:
+                wait_time = BASE_BACKOFF ** retries
+                print(f"Rate limit hit. Waiting {wait_time}s before retry...")
+
+                await asyncio.sleep(wait_time)
+
+                retries += 1
+            else:
+                raise e
+
+    raise Exception("Exceeded maximum retries due to rate limits")
+
+
 async def register_agent(agent):
     """
     Attempt registration until the lobby opens.
-    Supports reconnecting if the agent was already registered.
     """
 
     registered = False
@@ -88,7 +124,7 @@ async def register_agent(agent):
 
             with trace("registration_attempt"):
 
-                result = await Runner.run(
+                result = await safe_agent_run(
                     agent,
                     f"Register yourself with the name {PLAYER_NAME}"
                 )
@@ -112,6 +148,7 @@ async def register_agent(agent):
                 await asyncio.sleep(5)
 
         except Exception as e:
+
             print("Registration error:", e)
             await asyncio.sleep(5)
 
@@ -129,7 +166,7 @@ async def play_game(agent):
 
             with trace("game_loop"):
 
-                result = await Runner.run(
+                result = await safe_agent_run(
                     agent,
                     GAMING_INSTRUCTIONS
                 )
@@ -138,6 +175,7 @@ async def play_game(agent):
             print(result.final_output)
 
         except Exception as e:
+
             print("Error during game loop:", e)
 
         await asyncio.sleep(CHECK_INTERVAL + random.uniform(0, 0.5))
@@ -161,7 +199,7 @@ async def main():
         agent = Agent(
             name="Gladiator",
             model="gpt-4o-mini",
-            instructions= AGENT_INSTRUCTIONS,
+            instructions=AGENT_INSTRUCTIONS,
             mcp_servers=[mcp_server],
         )
 
