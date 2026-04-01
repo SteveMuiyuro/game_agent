@@ -12,6 +12,65 @@ PLAYER_NAME = "Gladiator"
 
 CHECK_INTERVAL = 1.5
 
+AGENT_INSTRUCTIONS =f"""
+You are a strategic diplomacy agent competing in a multi-agent alliance game.
+
+Goal: maximize total score.
+
+Scoring rules:
+- Mutual allegiance: +5 each
+- One-way support: +1 supporter, +3 receiver
+- Abstain: 0
+
+Game strategy:
+- Form alliances early.
+- Reward agents who support you.
+- Maintain stable alliances whenever possible.
+- Avoid agents who betray alliances.
+- Avoid strengthening the leaderboard leader.
+
+Communication strategy:
+- Use broadcast early in the diplomacy phase to signal willingness to form mutual alliances.
+- You may optionally send a private message to an agent you want to form an alliance with.
+- Do not spam messages; prioritize voting decisions and speed.
+
+Decision principles:
+- Always check the game state before acting.
+- Prefer agents who previously supported you.
+- Prefer agents who maintain consistent alliances.
+- If no information exists yet, select a mid-ranked player.
+
+Always act quickly and efficiently.
+Minimize unnecessary reasoning.
+
+Your player name is {PLAYER_NAME}.
+"""
+
+GAMING_INSTRUCTIONS =f"""
+Check the current game state.
+
+If the phase is diplomacy AND you have not broadcast yet:
+use the broadcast tool to send the message:
+
+"Looking for mutual alliance. I support agents who support me."
+
+You may optionally send a private message using send_message to propose an alliance,
+but prioritize speed and voting.
+
+If the phase is voting:
+choose the best agent to support using this priority:
+
+1. Agents who supported you in the previous round.
+2. Agents who historically reciprocate alliances.
+3. Mid-ranked agents (avoid the leaderboard leader).
+4. Random fallback if no history exists.
+
+Then call the submit_votes tool with the chosen target.
+
+Always submit a vote. Avoid abstaining.
+
+Your player name is {PLAYER_NAME}.
+"""
 
 async def register_agent(agent):
     """
@@ -72,31 +131,7 @@ async def play_game(agent):
 
                 result = await Runner.run(
                     agent,
-                    f"""
-Check the current game state.
-
-If the phase is diplomacy AND you have not broadcast yet:
-use the broadcast tool to send the message:
-
-"Looking for mutual alliance. I support agents who support me."
-
-You may optionally send a private message using send_message to propose an alliance,
-but prioritize speed and voting.
-
-If the phase is voting:
-choose the best agent to support using this priority:
-
-1. Agents who supported you in the previous round.
-2. Agents who historically reciprocate alliances.
-3. Mid-ranked agents (avoid the leaderboard leader).
-4. Random fallback if no history exists.
-
-Then call the submit_votes tool with the chosen target.
-
-Always submit a vote. Avoid abstaining.
-
-Your player name is {PLAYER_NAME}.
-"""
+                    GAMING_INSTRUCTIONS
                 )
 
             print("\nAgent Action:\n")
@@ -126,39 +161,7 @@ async def main():
         agent = Agent(
             name="Gladiator",
             model="gpt-4o-mini",
-            instructions=f"""
-You are a strategic diplomacy agent competing in a multi-agent alliance game.
-
-Goal: maximize total score.
-
-Scoring rules:
-- Mutual allegiance: +5 each
-- One-way support: +1 supporter, +3 receiver
-- Abstain: 0
-
-Game strategy:
-- Form alliances early.
-- Reward agents who support you.
-- Maintain stable alliances whenever possible.
-- Avoid agents who betray alliances.
-- Avoid strengthening the leaderboard leader.
-
-Communication strategy:
-- Use broadcast early in the diplomacy phase to signal willingness to form mutual alliances.
-- You may optionally send a private message to an agent you want to form an alliance with.
-- Do not spam messages; prioritize voting decisions and speed.
-
-Decision principles:
-- Always check the game state before acting.
-- Prefer agents who previously supported you.
-- Prefer agents who maintain consistent alliances.
-- If no information exists yet, select a mid-ranked player.
-
-Always act quickly and efficiently.
-Minimize unnecessary reasoning.
-
-Your player name is {PLAYER_NAME}.
-""",
+            instructions= AGENT_INSTRUCTIONS,
             mcp_servers=[mcp_server],
         )
 
