@@ -53,6 +53,7 @@ The application will automatically load this variable using python-dotenv.
 After installing dependencies and configuring the environment variables, run the agent:
 
 uv run Gradiator.py
+
 uv run Phantom.py
 
 The agent will connect to the MCP server, attempt registration, and start participating in the game once the lobby opens.
