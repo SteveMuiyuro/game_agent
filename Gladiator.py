@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-MCP_URL = "https://frontiers-mcp.vercel.app/mcp"
+MCP_URL = "http://ec2-3-236-210-35.compute-1.amazonaws.com/mcp"
 PLAYER_NAME = "Gladiator"
 
 CHECK_INTERVAL = 1.5
@@ -15,23 +15,31 @@ CHECK_INTERVAL = 1.5
 MAX_RETRIES = 3
 BASE_BACKOFF = 2
 
-
 AGENT_INSTRUCTIONS = f"""
 You are a strategic diplomacy agent competing in a multi-agent alliance game.
 
-Goal: maximize total score.
+Goal: maximize total score for yourself and your squad.
 
 Scoring rules:
 - Mutual allegiance: +5 each
 - One-way support: +1 supporter, +3 receiver
-- Abstain: 0
+- Abstain: -2
+
+Role:
+- You are the scout agent of your squad.
+- Two squadmates maintain a stable mutual alliance.
+- Your task is to explore alliances with other agents to generate additional mutual partnerships.
 
 Game strategy:
-- Form alliances early.
-- Reward agents who support you.
-- Maintain stable alliances whenever possible.
+- Seek external alliances outside your squad.
+- Strongly prioritize reciprocal alliances.
+- If another agent supports you, support them back in the next round whenever possible.
+- Maintain stable mutual alliances across multiple rounds.
 - Avoid agents who betray alliances.
-- Avoid strengthening the leaderboard leader.
+- Avoid strengthening the leaderboard leader unless a stable mutual alliance already exists.
+
+Fallback strategy:
+- If no reliable external alliance exists, temporarily support a trusted squadmate, prefarably agent alpha
 
 Communication strategy:
 - Use broadcast early in the diplomacy phase to signal willingness to form mutual alliances.
@@ -42,7 +50,7 @@ Decision principles:
 - Always check the game state before acting.
 - Prefer agents who previously supported you.
 - Prefer agents who maintain consistent alliances.
-- If no information exists yet, select a mid-ranked player.
+- If no information exists yet, select a mid-ranked player likely seeking alliances.
 
 Always act quickly and efficiently.
 Minimize unnecessary reasoning.
@@ -54,10 +62,8 @@ Your player name is {PLAYER_NAME}.
 GAMING_INSTRUCTIONS = f"""
 Check the current game state.
 
-If the phase is diplomacy AND you have not broadcast yet:
-use the broadcast tool to send the message:
-
-"Looking for mutual alliance. I support agents who support me."
+If the phase is diplomacy AND you have not broadcasted yet:
+broadcast a message: "Looking for stable mutual alliance."
 
 You may optionally send a private message using send_message to propose an alliance,
 but prioritize speed and voting.
@@ -67,15 +73,17 @@ choose the best agent to support using this priority:
 
 1. Agents who supported you in the previous round.
 2. Agents who historically reciprocate alliances.
-3. Mid-ranked agents (avoid the leaderboard leader).
-4. Random fallback if no history exists.
-
+3. Mid-ranked agents likely seeking alliances.
+4. Avoid supporting the current leaderboard leader unless mutual support already exists.
+5.If no reliable external alliance exists, support a trusted squadmate agent phantom every round and then proceed to look for alliances.
 Then call the submit_votes tool with the chosen target.
+
 
 Always submit a vote. Avoid abstaining.
 
 Your player name is {PLAYER_NAME}.
 """
+
 
 
 async def safe_agent_run(agent, prompt):
@@ -145,7 +153,7 @@ async def register_agent(agent):
 
             else:
                 print("Lobby not open yet. Retrying in 5 seconds...\n")
-                await asyncio.sleep(5)
+                await asyncio.sleep(1)
 
         except Exception as e:
 
