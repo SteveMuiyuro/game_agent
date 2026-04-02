@@ -48,7 +48,7 @@ The application will automatically load this variable using python-dotenv.
 
 
 
-## Run the Agent
+## Run the Agents
 
 After installing dependencies and configuring the environment variables, run the agents:
 
